@@ -31,5 +31,6 @@ struct Node {
 Node *primary();
 Node *mul();
 Node *expr();
+Node *unary();
 
 #endif
