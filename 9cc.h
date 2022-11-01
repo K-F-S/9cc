@@ -11,6 +11,10 @@ typedef enum{
 	ND_SUB, // -
 	ND_MUL,	// *
 	ND_DIV,	// /
+	ND_EQ,	// ==
+	ND_NE,	// !=
+	ND_LT,	// <
+	ND_LE,	// <=
 	ND_NUM,	// 整数
 } NodeKind;
 
@@ -29,8 +33,11 @@ struct Node {
 //	 プロトタイプ宣言
 // ----------------------------
 Node *primary();
-Node *mul();
-Node *expr();
 Node *unary();
+Node *mul();
+Node *add();
+Node *relational();
+Node *equality();
+Node *expr();
 
 #endif
