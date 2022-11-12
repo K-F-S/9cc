@@ -11,13 +11,24 @@ bool consume(char *op){
 	return true;
 }
 
+// 次のトークンが変数の場合は、トークンを１つ読み進めて
+// その変数を返す。それ以外はNULLを返す
+Token *consume_ident(void) {
+	Token *tok = NULL;
+
+	if (token->kind != TK_IDENT)
+		return tok;
+	tok = token;
+	token = token->next;
+	return tok;
+}
+
 // 次のトークンが期待している記号の時には、トークンを１つ読み進める
 // それ以外の場合はエラーを報告する
 void expect(char *op){
-	if (token->kind != TK_RESERVED ||
-		strlen(op) != token->len ||
+	if (strlen(op) != token->len ||
 		memcmp(token->str, op, token->len))
-		error_at(token->str,"'%c'ではありません", op);
+		error_at(token->str,"'%s'ではありません", op);
 	token = token->next;
 }
 
@@ -29,6 +40,10 @@ int expect_number(){
 	int val = token->val;
 	token = token->next;
 	return val;
+}
+
+bool at_eof() {
+	return token->kind == TK_EOF;
 }
 
 //-----------------------------
@@ -50,9 +65,32 @@ Node *new_node_num(int val){
 	return node;
 }
 
-// expr = equality
+// program = stmt*
+void program() {
+	int i = 0;
+	while (!at_eof())
+		code[i++] = stmt();
+	code[i] = NULL;
+}
+
+// stmt = expr ";"
+Node *stmt() {
+	Node *node = expr();
+	expect(";");
+	return node;
+}
+
+// expr = assign
 Node *expr(){
-	return equality();
+	return assign();
+}
+
+// assign = equality ("=" assign)?
+Node *assign() {
+	Node *node = equality();
+	if (consume("="))
+		node = new_node(ND_ASSIGN, node, assign());
+	return node;
 }
 
 // equality = relational("==" relational | "!=" relational)*
@@ -101,6 +139,7 @@ Node *add(){
 	}
 }
 
+// mul = unary ("*" unary | "/" unary)*
 Node *mul(){
 	Node *node = unary();
 
@@ -114,6 +153,7 @@ Node *mul(){
 	}
 }
 
+// unary = ("+" | "-")? primary
 Node *unary(){
 	if (consume("+"))
 		return primary();
@@ -122,11 +162,21 @@ Node *unary(){
 	return primary();
 }
 
+// primary = num | ident | "(" expr ")"
 Node *primary(){
 	// 次のトークンが ( なら、) のはず
 	if (consume("(")){
 		Node *node = expr();
 		expect(")");
+		return node;
+	}
+	
+	// 次のトークンがident（変数）の場合
+	Token *tok = consume_ident();
+	if (tok) {
+		Node *node = calloc(1, sizeof(Node));
+		node->kind = ND_LVAR;
+		node->offset = (tok->str[0] - 'a' + 1) * 8;
 		return node;
 	}
 

@@ -36,9 +36,6 @@ void error_at(char *loc, char *fmt, ...){
 //----------------------------------
 //	 トークナイズ
 //----------------------------------
-bool at_eof() {
-	return token->kind == TK_EOF;
-}
 
 // 新しいトークンを作成してcurに繋げる
 Token *new_token(TokenKind kind, Token *cur, char *str, int len) {
@@ -67,6 +64,11 @@ Token *tokenize(char *p){
 			p++;
 			continue;
 		}
+		
+		if ('a' <= *p && *p <= 'z') {
+			cur = new_token(TK_IDENT, cur, p++, 1);
+			continue;
+		}
 
 		if (startswitch(p, "==") || startswitch(p, "!=") ||
 				startswitch(p, "<=") || startswitch(p, ">=")){
@@ -75,7 +77,7 @@ Token *tokenize(char *p){
 			continue;
 		}
 
-		if (strchr( "+-*/()<>", *p)) {
+		if (strchr( "+-*/()<>=", *p)) {
 			cur = new_token(TK_RESERVED, cur, p++, 1);
 			continue;
 		}
@@ -83,8 +85,13 @@ Token *tokenize(char *p){
 		if (isdigit(*p)){
 			cur = new_token(TK_NUM, cur, p, 0);
 			char *q = p;
-			cur->val = strtol(p, &p, 10);
+			cur->val = strtol(p, &p, 10); // 変換終了位置が &p に格納される
 			cur->len = p - q;
+			continue;
+		}
+		
+		if(*p == ';') {
+			cur = new_token(TK_EOF, cur, p++, 1);
 			continue;
 		}
 
@@ -95,34 +102,3 @@ Token *tokenize(char *p){
 	return head.next;
 }
 
-//------------------------------------
-//	  メイン
-//------------------------------------
-
-int main(int argc, char **argv){
-	if(argc != 2){
-		error("引数の個数が正しくありません");
-		return 1;
-	}
-	
-	// 入力した文字列をuser_inputに保存
-	user_input = argv[1];
-
-	// トークナイズしてパースする
-	token = tokenize(user_input);
-	Node *node = expr();
-	
-	// アセンブリの前半部分を出力
-	printf(".intel_syntax noprefix\n");
-	printf(".globl main\n");
-	printf("main:\n");
-	
-	// 抽象構文木を下りながらコード生成
-	gen(node);
-
-	// スタックトップに式全体の値が残っているはず	
-	// それをRAXにロードして関数の返り値とする
-	printf("	pop rax\n");
-	printf("	ret\n");
-	return 0;
-}
